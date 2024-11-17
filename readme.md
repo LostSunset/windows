@@ -55,8 +55,18 @@ docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-ti
 Via Kubernetes:
 
 ```shell
-kubectl apply -f kubernetes.yml
+kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
+
+## Compatibility ⚙️
+
+| **Product**  | **Platform**   | |
+|---|---|---|
+| Docker Engine | Linux| ✅ |
+| Docker Desktop | Linux | ❌ |
+| Docker Desktop | macOS | ❌ |
+| Docker Desktop | Windows 11 | ✅ |
+| Docker Desktop | Windows 10 | ❌ |
 
 ## FAQ 💬
 
@@ -93,7 +103,6 @@ kubectl apply -f kubernetes.yml
   | `10l`  | Windows 10 LTSC          | 4.6 GB   |
   | `10e`  | Windows 10 Enterprise    | 5.2 GB   |
   ||||
-  | `8`    | Windows 8.1 Pro          | 4.0 GB   |
   | `8e`   | Windows 8.1 Enterprise   | 3.7 GB   |
   | `7e`   | Windows 7 Enterprise     | 3.0 GB   |
   | `ve`   | Windows Vista Enterprise | 3.0 GB   |
@@ -361,7 +370,7 @@ kubectl apply -f kubernetes.yml
 
   - you are not using "Docker Desktop for Linux" as it does not support KVM, instead make use of Docker Engine directly.
  
-  - it could help to add `privileged: true` to your compose file (or `sudo` to your `run` command), to rule out any permission issue.
+  - it could help to add `privileged: true` to your compose file (or `sudo` to your `docker run` command), to rule out any permission issue.
 
 ### How do I run macOS in a container?
 
