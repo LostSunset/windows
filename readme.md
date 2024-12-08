@@ -37,6 +37,7 @@ services:
       VERSION: "11"
     devices:
       - /dev/kvm
+      - /dev/net/tun
     cap_add:
       - NET_ADMIN
     ports:
@@ -49,7 +50,7 @@ services:
 Via Docker CLI:
 
 ```bash
-docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-timeout 120 dockurr/windows
+docker run -it --rm -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN --stop-timeout 120 dockurr/windows
 ```
 
 Via Kubernetes:
@@ -176,7 +177,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I run a script after installation?
 
-  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example). Then bind that folder in your compose file like this:
+  To run your own script after installation, you can create a file called `install.bat` and place it in a folder together with any additional files it needs (software to be installed for example).
+  
+  Then bind that folder in your compose file like this:
 
   ```yaml
   volumes:
