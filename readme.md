@@ -110,7 +110,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
   | `ve`   | Windows Vista Enterprise | 3.0 GB   |
   | `xp`   | Windows XP Professional  | 0.6 GB   |
   ||||
-  | `2025` | Windows Server 2025      | 5.0 GB   |
+  | `2025` | Windows Server 2025      | 5.6 GB   |
   | `2022` | Windows Server 2022      | 4.7 GB   |
   | `2019` | Windows Server 2019      | 5.3 GB   |
   | `2016` | Windows Server 2016      | 6.5 GB   |
@@ -189,7 +189,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
     -  /home/user/example:/oem
   ```
 
-  The example folder `/home/user/example` will be copied to `C:\OEM` during installation and the containing `install.bat` will be executed during the last step.
+  The example folder `/home/user/example` will be copied to `C:\OEM` and the containing `install.bat` will be executed during the last step of the automatic installation.
 
 ### How do I perform a manual installation?
 
