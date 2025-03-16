@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${KEY:=""}"
 : "${WIDTH:=""}"
 : "${HEIGHT:=""}"
 : "${VERIFY:=""}"
@@ -100,6 +101,9 @@ parseVersion() {
       ;;
     "16" | "2016" | "win16" | "win2016" | "windows2016" | "windows 2016" )
       VERSION="win2016-eval"
+      ;;
+    "hv" | "hyperv" | "hyper v" | "hyper-v" | "19hv" | "2019hv" | "win2019hv")
+      VERSION="win2019-hv"
       ;;
     "2012" | "2012r2" | "win2012" | "win2012r2" | "windows2012" | "windows 2012" )
       VERSION="win2012r2-eval"
@@ -417,6 +421,7 @@ printVersion() {
     "win95"* ) desc="Windows 95" ;;
     "win2k"* ) desc="Windows 2000" ;;
     "winvista"* ) desc="Windows Vista" ;;
+    "win2019-hv"* ) desc="Hyper-V Server" ;;
     "win2003"* ) desc="Windows Server 2003" ;;
     "win2008"* ) desc="Windows Server 2008" ;;
     "win2012"* ) desc="Windows Server 2012" ;;
@@ -461,6 +466,9 @@ printEdition() {
     *"-education" )
       edition="Education"
       ;;
+    *"-hv" )
+      edition="2019"
+      ;;
     *"-iot" | *"-iot-eval" )
       edition="LTSC"
       ;;
@@ -482,11 +490,12 @@ printEdition() {
     "winvista"* )
       edition="Business"
       ;;
-    "win2025"* | "win2022"* | "win2019"* | "win2016"* )
-      edition="Standard"
-      ;;
-    "win2012"* | "win2008"* | "win2003"* )
-      edition="Standard"
+    "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
+      case "${EDITION^^}" in
+        *"DATACENTER"* ) edition="Datacenter" ;;
+        "CORE" | "STANDARDCORE" ) edition="Core" ;;
+        * ) edition="Standard" ;;
+      esac
       ;;
   esac
 
@@ -549,6 +558,9 @@ fromFile() {
     "tiny10"* | "tiny_10"* )
       id="tiny10"
       ;;
+    *"_serverhypercore_"* )
+      id="win2019${add}-hv"
+      ;;
     *"server2025"* | *"server_2025"* )
       id="win2025${add}"
       ;;
@@ -604,6 +616,7 @@ fromName() {
     *"server 2012"* ) id="win2012r2${add}" ;;
     *"server 2008"* ) id="win2008r2${add}" ;;
     *"server 2003"* ) id="win2003r2${add}" ;;
+    *"hyper-v server"* ) id="win2019${add}" ;;
   esac
 
   echo "$id"
@@ -647,6 +660,7 @@ getVersion() {
     "win2025"* | "win2022"* | "win2019"* | "win2016"* | "win2012"* | "win2008"* | "win2003"* )
        case "${name,,}" in
           *" evaluation"* ) id="$id-eval" ;;
+          *"hyper-v server"* ) id="$id-hv" ;;
         esac
       ;;
   esac
@@ -748,6 +762,11 @@ getMido() {
       sum="6dae072e7f78f4ccab74a45341de0d6e2d45c39be25f1f5920a2ab4f51d7bcbb"
       url="https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso"
      ;;
+    "win2019-hv" )
+      size=3072712704
+      sum="48e9b944518e5bbc80876a9a7ff99716f386f404f4be48dca47e16a66ae7872c"
+      url="https://software-download.microsoft.com/download/pr/17763.557.190612-0019.rs5_release_svc_refresh_SERVERHYPERCORE_OEM_x64FRE_en-us.ISO"
+     ;;
     "win2016-eval" )
       size=6972221440
       sum="1ce702a578a3cb1ac3d14873980838590f06d5b7101c5daaccbac9d73f1fb50f"
@@ -795,13 +814,11 @@ getLink1() {
       url="11/en-us_windows_11_24h2_x64.iso"
       ;;
     "win11x64-iot" | "win11x64-enterprise-iot-eval" )
-      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
       ;;
     "win11x64-ltsc" | "win11x64-enterprise-ltsc-eval" )
-      [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-us" ]] && return 0
       size=5144817664
       sum="4f59662a96fc1da48c1b415d6c369d08af55ddd64e8f1c84e0166d9e50405d7a"
       url="11/X23-81951_26100.1742.240906-0331.ge_release_svc_refresh_CLIENT_ENTERPRISES_OEM_x64FRE_en-us.iso"
@@ -1177,9 +1194,7 @@ prepareInstall() {
 
   local dir="$2"
   local desc="$3"
-  local arch="$4"
-  local key="$5"
-  local driver="$6"
+  local driver="$4"
   local drivers="/tmp/drivers"
 
   rm -rf "$drivers"
@@ -1198,7 +1213,8 @@ prepareInstall() {
     error "Failed to extract drivers!" && return 1
   fi
 
-  local target
+  local arch target
+  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
   [[ "${arch,,}" == "x86" ]] && target="$dir/I386" || target="$dir/AMD64"
 
   if [ ! -f "$drivers/viostor/$driver/$arch/viostor.sys" ]; then
@@ -1284,6 +1300,25 @@ prepareInstall() {
   [ -n "$PASSWORD" ] && password="$PASSWORD"
   [ -n "$USERNAME" ] && username=$(echo "$USERNAME" | sed 's/[^[:alnum:]@!._-]//g')
 
+  # These are not pirated keys, they come from the official MS documentation.
+  if [[ "${driver,,}" == "xp" ]]; then
+    if [[ "${arch,,}" == "x86" ]]; then
+      # Windows XP Professional x86 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
+    else
+      # Windows XP Professional x64 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
+    fi
+  else
+    if [[ "${arch,,}" == "x86" ]]; then
+      # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
+    else
+      # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
+      [ -z "$KEY" ] && KEY="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
+    fi
+  fi
+
   find "$target" -maxdepth 1 -type f -iname winnt.sif -exec rm {} \;
 
   {       echo "[Data]"
@@ -1321,7 +1356,7 @@ prepareInstall() {
           echo "    FullName=\"$username\""
           echo "    ComputerName=\"*\""
           echo "    OrgName=\"Windows for Docker\""
-          echo "    ProductKey=$key"
+          echo "    ProductKey=$KEY"
           echo ""
           echo "[Identification]"
           echo "    JoinWorkgroup = WORKGROUP"
@@ -1467,56 +1502,6 @@ prepareInstall() {
   return 0
 }
 
-prepare2k3() {
-
-  local iso="$1"
-  local dir="$2"
-  local desc="$3"
-  local driver="2k3"
-  local arch key
-
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows Server 2003 Standard x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="QKDCQ-TP2JM-G4MDG-VR6F2-P9C48"
-  else
-    # Windows Server 2003 Standard x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="P4WJG-WK3W7-3HM8W-RWHCK-8JTRY"
-  fi
-
-  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
-
-  return 0
-}
-
-prepareXP() {
-
-  local iso="$1"
-  local dir="$2"
-  local desc="$3"
-  local driver="xp"
-  local arch key
-
-  [ -d "$dir/AMD64" ] && arch="amd64" || arch="x86"
-
-  if [[ "${arch,,}" == "x86" ]]; then
-    # Windows XP Professional x86 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="DR8GV-C8V6J-BYXHG-7PYJR-DB66Y"
-  else
-    # Windows XP Professional x64 generic key (no activation, trial-only)
-    # This is not a pirated key, it comes from the official MS documentation.
-    key="B2RBK-7KPT9-4JP6X-QQFWM-PJD6G"
-  fi
-
-  prepareInstall "$iso" "$dir" "$desc" "$arch" "$key" "$driver" || return 1
-
-  return 0
-}
-
 prepareLegacy() {
 
   local iso="$1"
@@ -1603,11 +1588,11 @@ setMachine() {
     "win2k"* )
       ETFS="[BOOT]/Boot-NoEmul.img" ;;
     "winxp"* )
-      if ! prepareXP "$iso" "$dir" "$desc"; then
+      if ! prepareInstall "$iso" "$dir" "$desc" "xp"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
     "win2003"* )
-      if ! prepare2k3 "$iso" "$dir" "$desc"; then
+      if ! prepareInstall "$iso" "$dir" "$desc" "2k3"; then
         error "Failed to prepare $desc ISO!" && return 1
       fi ;;
   esac

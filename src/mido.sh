@@ -208,6 +208,9 @@ download_windows_eval() {
     "win2022-eval" )
       enterprise_type="server"
       windows_version="windows-server-2022" ;;
+    "win2019-hv" )
+      enterprise_type="server"
+      windows_version="hyper-v-server-2019" ;;
     "win2019-eval" )
       enterprise_type="server"
       windows_version="windows-server-2019" ;;
@@ -335,7 +338,7 @@ getWindows() {
     "win11${PLATFORM,,}-enterprise"* | "win10${PLATFORM,,}-enterprise"* )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
-    "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2016-eval" | "win2012r2-eval" )
+    "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
     "win7${PLATFORM,,}"* | "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
@@ -513,14 +516,15 @@ downloadFile() {
   local size="$4"
   local lang="$5"
   local desc="$6"
-  local rc total progress domain dots space folder
+  local rc total total_gb progress domain dots space folder
 
   rm -f "$iso"
 
   if [ -n "$size" ] && [[ "$size" != "0" ]]; then
     folder=$(dirname -- "$iso")
     space=$(df --output=avail -B 1 "$folder" | tail -n 1)
-    (( size > space )) && error "Not enough free space left to download file!" && return 1
+    total_gb=$(formatBytes "$space")
+    (( size > space )) && error "Not enough free space to download file, only $total_gb left!" && return 1
   fi
 
   # Check if running with interactive TTY or redirected to docker log
@@ -550,8 +554,9 @@ downloadFile() {
 
   if (( rc == 0 )) && [ -f "$iso" ]; then
     total=$(stat -c%s "$iso")
+    total_gb=$(formatBytes "$total")
     if [ "$total" -lt 100000000 ]; then
-      error "Invalid download link: $url (is only $total bytes?). Please report this at $SUPPORT/issues." && return 1
+      error "Invalid download link: $url (is only $total_gb ?). Please report this at $SUPPORT/issues." && return 1
     fi
     verifyFile "$iso" "$size" "$total" "$sum" || return 1
     html "Download finished successfully..." && return 0
