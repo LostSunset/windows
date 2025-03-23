@@ -581,6 +581,10 @@ detectImage() {
   info "Detected: $desc"
   setXML "" && return 0
 
+  if [[ "$DETECTED" == "win81x86"* ]] || [[ "$DETECTED" == "win10x86"* ]]; then
+    error "The 32-bit version of $desc is not supported!" && return 1
+  fi
+
   msg="the answer file for $desc was not found ($DETECTED.xml)"
   local fallback="/run/assets/${DETECTED%%-*}.xml"
 
@@ -627,6 +631,10 @@ updateXML() {
   local asset="$1"
   local language="$2"
   local culture region user admin pass keyboard
+
+  if [ -n "${VM_NET_IP:-}" ]; then
+    sed -i "s/ 20.20.20.1 / ${VM_NET_IP%.*}.1 /g" "$asset"
+  fi
 
   [ -z "$HEIGHT" ] && HEIGHT="720"
   [ -z "$WIDTH" ] && WIDTH="1280"
@@ -722,7 +730,11 @@ addDriver() {
 
   if [ -z "$folder" ]; then
     desc=$(printVersion "$id" "$id")
-    warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+    if [[ "${id,,}" != *"x86"* ]]; then
+      warn "no \"$driver\" driver available for \"$desc\" !" && return 0
+    else
+      warn "no \"$driver\" driver available for the 32-bit version of \"$desc\" !" && return 0
+    fi
   fi
 
   [ ! -d "$path/$driver/$folder" ] && return 0

@@ -26,7 +26,7 @@ Windows inside a Docker container.
 
 ## Usage 🐳
 
-Via Docker Compose:
+##### Via Docker Compose:
 
 ```yaml
 services:
@@ -50,27 +50,21 @@ services:
     stop_grace_period: 2m
 ```
 
-Via Docker CLI:
+##### Via Docker CLI:
 
 ```bash
 docker run -it --rm --name windows -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/windows:/storage --stop-timeout 120 dockurr/windows
 ```
 
-Via Kubernetes:
+##### Via Kubernetes:
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/master/kubernetes.yml
 ```
 
-## Compatibility ⚙️
+##### Via Github Codespaces:
 
-| **Product**  | **Platform**   | |
-|---|---|---|
-| Docker Engine | Linux| ✅ |
-| Docker Desktop | Linux | ❌ |
-| Docker Desktop | macOS | ❌ |
-| Docker Desktop | Windows 11 | ✅ |
-| Docker Desktop | Windows 10 | ❌ |
+[`Click here to launch this container in the cloud!`](https://github.com/codespaces/new?skip_quickstart=true&machine=basicLinux32gb&repo=743140652&ref=master&devcontainer_path=.devcontainer.json)
 
 ## FAQ 💬
 
@@ -78,7 +72,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   Very simple! These are the steps:
   
-  - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
+  - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
 
   - Sit back and relax while the magic happens, the whole installation will be performed fully automatic.
 
@@ -369,9 +363,16 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
 ### How do I verify if my system supports KVM?
 
-  Only Linux and Windows 11 support KVM virtualization, macOS and Windows 10 do not unfortunately.
-  
-  You can run the following commands in Linux to check your system:
+  First check if your software is compatible using this chart:
+
+  | **Product**  | **Linux** | **Win11** | **Win10** | **macOS** |
+  |---|---|---|---|---|
+  | Docker CLI        | ✅   | ✅       | ❌        | ❌ |
+  | Docker Desktop    | ❌   | ✅       | ❌        | ❌ | 
+  | Podman CLI        | ✅   | ✅       | ❌        | ❌ | 
+  | Podman Desktop    | ✅   | ✅       | ❌        | ❌ | 
+
+  After that you can run the following commands in Linux to check your system:
 
   ```bash
   sudo apt install cpu-checker
@@ -386,11 +387,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/windows/refs/heads/mas
 
   - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPS's.
 
-  If you do not receive any error from `kvm-ok` but the container still complains about KVM, please check whether:
-
-  - you are not using "Docker Desktop for Linux" as it does not support KVM, instead make use of Docker Engine directly.
- 
-  - it could help to add `privileged: true` to your compose file (or `sudo` to your `docker run` command), to rule out any permission issue.
+  If you did not receive any error from `kvm-ok` but the container still complains about a missing KVM device, it could help to add `privileged: true` to your compose file (or `sudo` to your `docker` command) to rule out any permission issue.
 
 ### How do I run macOS in a container?
 

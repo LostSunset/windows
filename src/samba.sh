@@ -14,6 +14,10 @@ if [[ "$DHCP" == [Yy1]* ]]; then
   interface="$VM_NET_DEV"
 fi
 
+if [[ "${NETWORK,,}" == "user"* ]]; then
+  interface="127.0.0.1"
+fi
+
 addShare() {
   local dir="$1"
   local name="$2"
