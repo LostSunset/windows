@@ -93,6 +93,7 @@ download_windows() {
 
   # uuidgen: For MacOS (installed by default) and other systems (e.g. with no /proc) that don't have a kernel interface for generating random UUIDs
   session_id=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
+  session_id="${session_id//[![:print:]]/}"
 
   # Get product edition ID for latest release of given Windows version
   # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
@@ -313,7 +314,7 @@ getWindows() {
   info "$msg" && html "$msg"
 
   case "${version,,}" in
-    "win2008r2" | "win7${PLATFORM,,}"* | "win81${PLATFORM,,}"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
+    "win2008r2" | "win81${PLATFORM,,}"* | "win11${PLATFORM,,}-enterprise-iot"* | "win11${PLATFORM,,}-enterprise-ltsc"* )
       if [[ "${lang,,}" != "en" ]] && [[ "${lang,,}" != "en-"* ]]; then
         error "No download in the $language language available for $edition!"
         MIDO_URL="" && return 1
@@ -341,7 +342,7 @@ getWindows() {
     "win2025-eval" | "win2022-eval" | "win2019-eval" | "win2019-hv" | "win2016-eval" | "win2012r2-eval" )
       download_windows_eval "$version" "$lang" "$edition" && return 0
       ;;
-    "win7${PLATFORM,,}"* | "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
+    "win81${PLATFORM,,}-enterprise"* | "win2008r2" )
       ;;
     * ) error "Invalid VERSION specified, value \"$version\" is not recognized!" ;;
   esac

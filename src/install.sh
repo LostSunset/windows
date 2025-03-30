@@ -16,6 +16,7 @@ skipInstall() {
 
   if [ -f "$previous" ]; then
     previous=$(<"$previous")
+    previous="${previous//[![:print:]]/}"
     if [ -n "$previous" ]; then
       previous="$STORAGE/$previous"
       if [[ "${previous,,}" != "${iso,,}" ]]; then
@@ -205,7 +206,7 @@ detectCustom() {
   CUSTOM=""
 
   if [ -d "/$fname" ]; then
-    error "The file /$fname has an invalid path!" && return 1
+    error "The file /$fname does not exist, please make sure that you mapped it to a valid path!" && return 1
   fi
 
   file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
@@ -494,7 +495,7 @@ setXML() {
   local file="/custom.xml"
 
   if [ -d "$file" ]; then
-    warn "The file $file has an invalid path!"
+    warn "The file $file does not exist, please make sure that you mapped it to a valid path!"
   fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
@@ -1014,19 +1015,27 @@ bootWindows() {
 
   if [ -f "$STORAGE/windows.args" ]; then
     ARGS=$(<"$STORAGE/windows.args")
+    ARGS="${ARGS//[![:print:]]/}"
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
   fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
-    [ -z "${DISK_TYPE:-}" ] && DISK_TYPE=$(<"$STORAGE/windows.type")
+    if [ -z "${DISK_TYPE:-}" ]; then
+      DISK_TYPE=$(<"$STORAGE/windows.type")
+      DISK_TYPE="${DISK_TYPE//[![:print:]]/}"
+    fi
   fi
 
   if [ -s "$STORAGE/windows.mode" ] && [ -f "$STORAGE/windows.mode" ]; then
     BOOT_MODE=$(<"$STORAGE/windows.mode")
+    BOOT_MODE="${BOOT_MODE//[![:print:]]/}"
   fi
 
   if [ -s "$STORAGE/windows.old" ] && [ -f "$STORAGE/windows.old" ]; then
-    [[ "${PLATFORM,,}" == "x64" ]] && MACHINE=$(<"$STORAGE/windows.old")
+    if [[ "${PLATFORM,,}" == "x64" ]]; then
+      MACHINE=$(<"$STORAGE/windows.old")
+      MACHINE="${MACHINE//[![:print:]]/}"
+    fi
   fi
 
   return 0
