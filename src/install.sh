@@ -10,6 +10,7 @@ EFISYS="efi/microsoft/boot/efisys_noprompt.bin"
 skipInstall() {
 
   local iso="$1"
+  local method=""
   local magic byte
   local boot="$STORAGE/windows.boot"
   local previous="$STORAGE/windows.base"
@@ -18,14 +19,22 @@ skipInstall() {
     previous=$(<"$previous")
     previous="${previous//[![:print:]]/}"
     if [ -n "$previous" ]; then
-      previous="$STORAGE/$previous"
-      if [[ "${previous,,}" != "${iso,,}" ]]; then
+      if [[ "${STORAGE,,}/${previous,,}" != "${iso,,}" ]]; then
         if [ -f "$boot" ] && hasDisk; then
-          info "Detected that the version was changed, but ignoring this because Windows is already installed."
-          info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          if [[ "${iso,,}" == "${STORAGE,,}/windows."* ]]; then
+            method="your custom .iso file"
+          else
+            if [[ "${previous,,}" != "windows."* ]]; then
+              method="the VERSION variable"
+            fi
+          fi
+          if [ -n "$method" ]; then
+            info "Detected that $method was changed, but ignoring this because Windows is already installed."
+            info "Please start with an empty /storage folder, if you want to install a different version of Windows."
+          fi
           return 0
         fi
-        [ -f "$previous" ] && rm -f "$previous"
+        rm -f "$STORAGE/$previous"
         return 1
       fi
     fi
@@ -119,6 +128,8 @@ finishInstall() {
 
   rm -f "$STORAGE/windows.old"
   rm -f "$STORAGE/windows.vga"
+  rm -f "$STORAGE/windows.net"
+  rm -f "$STORAGE/windows.usb"
   rm -f "$STORAGE/windows.args"
   rm -f "$STORAGE/windows.base"
   rm -f "$STORAGE/windows.boot"
@@ -161,8 +172,20 @@ finishInstall() {
     echo "$ARGS" > "$STORAGE/windows.args"
   fi
 
+  if [ -n "${VGA:-}" ] && [[ "${VGA:-}" != "virtio"* ]]; then
+    echo "$VGA" > "$STORAGE/windows.vga"
+  fi
+
+  if [ -n "${USB:-}" ] && [[ "${USB:-}" != "qemu-xhci"* ]]; then
+    echo "$USB" > "$STORAGE/windows.usb"
+  fi
+
   if [ -n "${DISK_TYPE:-}" ] && [[ "${DISK_TYPE:-}" != "scsi" ]]; then
     echo "$DISK_TYPE" > "$STORAGE/windows.type"
+  fi
+
+  if [ -n "${ADAPTER:-}" ] && [[ "${ADAPTER:-}" != "virtio-net-pci" ]]; then
+    echo "$ADAPTER" > "$STORAGE/windows.net"
   fi
 
   rm -rf "$TMP"
@@ -176,6 +199,7 @@ abortInstall() {
   local efi
 
   [[ "${iso,,}" == *".esd" ]] && exit 60
+  [[ "${UNPACK:-}" == [Yy1]* ]] && exit 60
 
   efi=$(find "$dir" -maxdepth 1 -type d -iname efi | head -n 1)
 
@@ -200,13 +224,19 @@ abortInstall() {
 
 detectCustom() {
 
-  local file base
+  local dir file base
   local fname="custom.iso"
+  local boot="$STORAGE/windows.boot"
 
   CUSTOM=""
 
-  if [ -d "/$fname" ]; then
-    error "The file /$fname does not exist, please make sure that you mapped it to a valid path!" && return 1
+  dir=$(find / -maxdepth 1 -type d -iname "$fname" | head -n 1)
+  [ ! -d "$dir" ] && dir=$(find "$STORAGE" -maxdepth 1 -type d -iname "$fname" | head -n 1)
+
+  if [ -d "$dir" ]; then
+    if ! hasDisk || [ ! -f "$boot" ]; then
+      error "The bind $dir maps to a file that does not exist!" && return 1
+    fi
   fi
 
   file=$(find / -maxdepth 1 -type f -iname "$fname" | head -n 1)
@@ -321,7 +351,7 @@ extractImage() {
   local dir="$2"
   local version="$3"
   local desc="local ISO"
-  local size size_gb space space_gb
+  local file size size_gb space space_gb
 
   if [ -z "$CUSTOM" ]; then
     desc="downloaded ISO"
@@ -360,7 +390,26 @@ extractImage() {
     error "Failed to extract ISO file: $iso" && return 1
   fi
 
-  LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+  if [[ "${UNPACK:-}" != [Yy1]* ]]; then
+
+    LABEL=$(isoinfo -d -i "$iso" | sed -n 's/Volume id: //p')
+
+  else
+
+    file=$(find "$dir" -maxdepth 1 -type f -iname "*.iso" | head -n 1)
+
+    if [ -z "$file" ]; then
+      error "Failed to find any .iso file in archive!" && return 1
+    fi
+
+    if ! 7z x "$file" -o"$dir" > /dev/null; then
+      error "Failed to extract archive!" && return 1
+    fi
+
+    LABEL=$(isoinfo -d -i "$file" | sed -n 's/Volume id: //p')
+    rm -f "$file"
+
+  fi
 
   return 0
 }
@@ -495,7 +544,7 @@ setXML() {
   local file="/custom.xml"
 
   if [ -d "$file" ]; then
-    warn "The file $file does not exist, please make sure that you mapped it to a valid path!"
+    error "The bind $file maps to a file that does not exist!" && exit 67
   fi
 
   [ ! -f "$file" ] || [ ! -s "$file" ] && file="$STORAGE/custom.xml"
@@ -674,16 +723,18 @@ updateXML() {
     sed -i "s/<Username>Docker<\/Username>/<Username>$user<\/Username>/g" "$asset"
   fi
 
-  if [ -n "$PASSWORD" ]; then
-    pass=$(printf '%s' "${PASSWORD}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-    admin=$(printf '%s' "${PASSWORD}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
-    sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
-    sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
-    sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pass<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
-    sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
-  fi
+  [ -n "$PASSWORD" ] && pass="$PASSWORD"
+  [ -z "$pass" ] && pass="admin"
+
+  pw=$(printf '%s' "${pass}Password" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+  admin=$(printf '%s' "${pass}AdministratorPassword" | iconv -f utf-8 -t utf-16le | base64 -w 0)
+
+  sed -i "s/<Value>password<\/Value>/<Value>$admin<\/Value>/g" "$asset"
+  sed -i "s/<PlainText>true<\/PlainText>/<PlainText>false<\/PlainText>/g" "$asset"
+  sed -z "s/<Password>...........<Value \/>/<Password>\n          <Value>$pw<\/Value>/g" -i "$asset"
+  sed -z "s/<Password>...............<Value \/>/<Password>\n              <Value>$pw<\/Value>/g" -i "$asset"
+  sed -z "s/<AdministratorPassword>...........<Value \/>/<AdministratorPassword>\n          <Value>$admin<\/Value>/g" -i "$asset"
+  sed -z "s/<AdministratorPassword>...............<Value \/>/<AdministratorPassword>\n              <Value>$admin<\/Value>/g" -i "$asset"
 
   if [ -n "$EDITION" ]; then
     [[ "${EDITION^^}" == "CORE" ]] && EDITION="STANDARDCORE"
@@ -1017,6 +1068,27 @@ bootWindows() {
     ARGS=$(<"$STORAGE/windows.args")
     ARGS="${ARGS//[![:print:]]/}"
     ARGUMENTS="$ARGS ${ARGUMENTS:-}"
+  fi
+
+  if [ -s "$STORAGE/windows.vga" ] && [ -f "$STORAGE/windows.vga" ]; then
+    if [ -z "${VGA:-}" ]; then
+      VGA=$(<"$STORAGE/windows.vga")
+      VGA="${VGA//[![:print:]]/}"
+    fi
+  fi
+
+  if [ -s "$STORAGE/windows.usb" ] && [ -f "$STORAGE/windows.usb" ]; then
+    if [ -z "${USB:-}" ]; then
+      USB=$(<"$STORAGE/windows.usb")
+      USB="${USB//[![:print:]]/}"
+    fi
+  fi
+
+  if [ -s "$STORAGE/windows.net" ] && [ -f "$STORAGE/windows.net" ]; then
+    if [ -z "${ADAPTER:-}" ]; then
+      ADAPTER=$(<"$STORAGE/windows.net")
+      ADAPTER="${ADAPTER//[![:print:]]/}"
+    fi
   fi
 
   if [ -s "$STORAGE/windows.type" ] && [ -f "$STORAGE/windows.type" ]; then
