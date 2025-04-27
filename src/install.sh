@@ -266,7 +266,7 @@ detectCustom() {
 
   ! findFile "custom.iso" && return 1
   [ -n "$CUSTOM" ] && return 0
-  
+
   ! findFile "boot.iso" && return 1
   [ -n "$CUSTOM" ] && return 0
 
@@ -834,7 +834,7 @@ addDrivers() {
     warn "Windows version unknown, falling back to Windows 11 drivers..."
   fi
 
-  if ! bsdtar -xf /drivers.txz -C "$drivers"; then
+  if ! bsdtar -xf /var/drivers.txz -C "$drivers"; then
     error "Failed to extract drivers from archive!" && return 1
   fi
 
